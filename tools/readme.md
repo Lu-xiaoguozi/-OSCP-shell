@@ -93,6 +93,7 @@ cat names.txt | ./genuser.sh -i - -f 'flast,first.last' -L -nd -q | sort -u > di
 含连字符或撇号的姓氏（如 `O'Brien`、`Smith-Jones`）会原样保留，建议配合 `-L` 统一小写。
 
 常见问题
+
 Q：为什么输出里出现了字面的 `f` 或 `l`？
 
 A：检查格式串中是否误用了脚本不认识的占位符。本脚本只认上表列出的关键字，其余字符一律原样输出。
