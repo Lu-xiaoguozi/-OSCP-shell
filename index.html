@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OSCP+ 终极渗透测试清单 · 中文镜像</title>
+  <meta name="description" content="OSCP+ 渗透测试作业清单中文镜像：378 个条目、13 个分组、3 个阶段，支持搜索、优先级筛选、状态跟踪与本地进度保存。">
+  <meta name="author" content="drgoteee / 中文镜像">
+  <meta name="keywords" content="OSCP, OSCP+, 渗透测试, 红队, 清单, 中文, 提权, Active Directory, Web 漏洞利用">
+  <meta property="og:title" content="OSCP+ 终极渗透测试清单 · 中文镜像">
+  <meta property="og:description" content="378 项可交互的 OSCP+ 作业清单，中文翻译、本地离线、进度自动保存。">
+  <meta property="og:type" content="website">
+  <link rel="stylesheet" href="assets/fonts/font.css">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <button class="menu-btn" id="menuBtn" aria-label="打开导航">☰</button>
+    <a class="brand" href="#top" aria-label="回到顶部">
+      <span class="brand-mark">▸</span>
+      <span class="brand-text">
+        <strong>OSCP+ <span>ULTIMATE</span></strong>
+        <small>渗透测试作业清单 · 中文镜像</small>
+      </span>
+    </a>
+    <div class="search-wrap">
+      <span class="search-icon" aria-hidden="true">⌕</span>
+      <input id="search" type="search" placeholder="搜索条目、命令或分组…（按 / 聚焦）" autocomplete="off" aria-label="搜索">
+      <kbd>/</kbd>
+    </div>
+    <div class="top-actions">
+      <div class="seg" id="langSeg" title="切换条目语言">
+        <button type="button" data-lang="zh" class="active">中文</button>
+        <button type="button" data-lang="en">原文</button>
+      </div>
+      <span class="version">v1.0</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <section class="progress-card" aria-label="总体进度">
+        <div class="ring" id="ring" style="--p:0">
+          <div class="ring-inner"><strong id="pct">0%</strong><span>完成度</span></div>
+        </div>
+        <div class="progress-copy">
+          <div class="progress-title">作战进度</div>
+          <div class="progress-sub"><b id="doneCount">0</b> / <span id="totalCount">0</span> 项</div>
+          <div class="mini-stats">
+            <span><i class="dot high"></i>高优先剩余 <b id="highLeft">0</b></span>
+            <span><i class="dot owned"></i>已攻陷 <b id="ownedCount">0</b></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="side-block">
+        <h3>阶段</h3>
+        <nav class="phase-nav" id="phaseNav" aria-label="阶段导航"></nav>
+      </section>
+
+      <section class="side-block">
+        <h3>优先级</h3>
+        <div class="chips" id="priFilter">
+          <button type="button" data-pri="ALL" class="active">全部</button>
+          <button type="button" data-pri="H" class="pri-h">高</button>
+          <button type="button" data-pri="M" class="pri-m">中</button>
+          <button type="button" data-pri="L" class="pri-l">低</button>
+        </div>
+      </section>
+
+      <section class="side-block">
+        <h3>状态</h3>
+        <select id="statusFilter" class="select" aria-label="按状态筛选">
+          <option value="ALL">全部状态</option>
+          <option value="NOT STARTED">未开始</option>
+          <option value="RECON">侦察</option>
+          <option value="FOOTHOLD">立足点</option>
+          <option value="PRIVESC">提权</option>
+          <option value="OWNED">已攻陷</option>
+        </select>
+        <label class="checkline"><input type="checkbox" id="hideDone"> 隐藏已完成</label>
+      </section>
+
+      <section class="side-block">
+        <h3>数据</h3>
+        <div class="btn-row">
+          <button type="button" id="exportBtn" class="btn">导出进度</button>
+          <button type="button" id="importBtn" class="btn">导入</button>
+        </div>
+        <button type="button" id="resetBtn" class="btn danger">重置全部进度</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+      </section>
+
+      <footer class="side-foot">
+        <p>数据来源 <a href="https://drgoteee.github.io/" target="_blank" rel="noopener">drgoteee.github.io</a> · MIT</p>
+        <p>仅供授权测试与考试准备使用。</p>
+      </footer>
+    </aside>
+
+    <main class="main" id="top">
+      <div class="notice" id="notice">
+        <div class="notice-icon" aria-hidden="true">!</div>
+        <div>
+          <strong>关于这个镜像</strong>
+          <p>上游公开版本在「Web 漏洞利用」阶段被截断：原文件后半段是空白，React 脚本也未闭合，页面实际无法渲染。本镜像包含实际可用的 <b>378 项 / 13 组 / 3 阶段</b>，已全部翻译为中文；缺失内容没有凭空补造。</p>
+        </div>
+        <button type="button" class="notice-close" id="noticeClose" aria-label="关闭提示">×</button>
+      </div>
+
+      <section class="hero">
+        <div class="hero-kicker">OFFENSIVE SECURITY METHODOLOGY</div>
+        <h1>OSCP+ 终极渗透测试清单</h1>
+        <p>从接战准备到 Web 漏洞利用，按阶段推进、逐项打勾。状态与进度自动保存在浏览器本地，刷新不丢失。</p>
+        <div class="hero-meta">
+          <span><b id="heroItems">0</b> 个条目</span>
+          <span><b>3</b> 个阶段</span>
+          <span><b>13</b> 个分组</span>
+          <span class="hero-warn">上游版本已截断</span>
+        </div>
+      </section>
+
+      <div class="toolbar">
+        <div class="result-count" id="resultCount"></div>
+        <div class="toolbar-actions">
+          <button type="button" class="btn ghost" id="expandAll">全部展开</button>
+          <button type="button" class="btn ghost" id="collapseAll">全部折叠</button>
+        </div>
+      </div>
+
+      <div id="content" class="content"></div>
+      <div id="empty" class="empty" hidden>没有匹配的条目。试试清空搜索或筛选条件。</div>
+
+      <footer class="main-foot">
+        基于 drgoteee 的 OSCP+ Ultimate Checklist（MIT）制作的中文镜像 · 命令与工具名保留原文 · 仅用于授权测试
+      </footer>
+    </main>
+  </div>
+
+  <div class="scrim" id="scrim"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="assets/data.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
